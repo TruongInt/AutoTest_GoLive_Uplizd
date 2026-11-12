@@ -2,9 +2,9 @@ name: Daily Smoke - Uplizd Products
 
 on:
   schedule:
-    # Chạy lúc 00:00 UTC = 07:00 sáng giờ Việt Nam
+    # 00:00 UTC = 07:00 sáng giờ Việt Nam
     - cron: '0 0 * * *'
-  workflow_dispatch:  # Cho phép chạy thủ công
+  workflow_dispatch:
   push:
     branches: [ main ]
 
@@ -12,7 +12,7 @@ jobs:
   smoke-test:
     timeout-minutes: 30
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm ci
@@ -41,6 +41,7 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+      # Gửi email khi FAIL (bất kể manual hay schedule)
       - name: Send Email on Failure
         if: steps.test.outcome == 'failure'
         uses: dawidd6/action-send-mail@v3
@@ -49,27 +50,25 @@ jobs:
           server_port: 465
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_PASS }}
-          subject: "[Uplizd] Unicorn Smoke Test FAILED - ${{ github.run_id }}"
+          subject: "🚨 [Uplizd] Unicorn Smoke Test FAILED"
           to: felixvoai@gmail.com
           from: Uplizd Auto Test
           body: |
             Unicorn Daily Smoke Test đã FAILED.
             
-            Xem chi tiết tại:
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            
-            Vui lòng kiểm tra và xử lý sớm.
+            Xem chi tiết: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           secure: true
 
-      - name: Send Daily Success Report (optional)
-        if: steps.test.outcome == 'success' && github.event_name == 'schedule'
+      # Gửi email khi PASS (cả manual lẫn schedule) — dùng để kiểm tra
+      - name: Send Email on Success
+        if: steps.test.outcome == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_PASS }}
-          subject: "[Uplizd] Unicorn Daily Smoke PASSED - ${{ github.run_id }}"
+          subject: "✅ [Uplizd] Unicorn Smoke Test PASSED"
           to: felixvoai@gmail.com
           from: Uplizd Auto Test
           body: |
